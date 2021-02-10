@@ -12,6 +12,12 @@ DOCKER_IMAGE_NAME := ${ORGANIZATION}-${SERVICE_NAME}
 GITHUB_REPO := "ghcr.io"
 DOCKER_REPO_IMAGE_NAME := ${GITHUB_REPO}/${ORGANIZATION}/${SERVICE_NAME}:${VERSION}
 
+ifneq ($(GITHUB_ACTION),)
+  INTERACTIVE=--env "INTERACTIVE=None"
+else
+  INTERACTIVE=--interactive
+endif
+
 # Docker
 
 build-docker: docker/Dockerfile src/main/scripts/run_terraform
@@ -26,7 +32,7 @@ build-docker: docker/Dockerfile src/main/scripts/run_terraform
 dev-terraform-plan: build-docker
 	@docker run \
 		--rm \
-		-it \
+		${INTERACTIVE} \
 		--env ENVIRONMENT=dev \
 		--env TERRAFORM_DIRECTORY=/terraform \
 		--env REGION=us-west-2 \
