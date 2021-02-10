@@ -39,15 +39,19 @@ tf_init_with_s3_backend() {
 }
 
 tf_infrastructure() {
+  echo "Running 'terraform $1 -var-file ${TERRAFORM_DIRECTORY}/${REGION}-${ENVIRONMENT}.tfvars ${TERRAFORM_DIRECTORY}'..."
   terraform $1 \
     -var-file "${TERRAFORM_DIRECTORY}/${REGION}-${ENVIRONMENT}.tfvars" \
     "${TERRAFORM_DIRECTORY}"
+  echo "Completed terraform command."
 }
 
 tf() {
+  echo "Running 'terraform $* ${TERRAFORM_DIRECTORY}'..."
   terraform \
     $* \
     "${TERRAFORM_DIRECTORY}"
+  echo "Completed terraform command."
 }
 
 main() {

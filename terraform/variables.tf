@@ -1,9 +1,9 @@
 variable "region" {
-  type        = "string"
+  type        = string
   description = "The region to deploy to."
 }
 
 variable "bucket_name" {
-  type        = "string"
+  type        = string
   description = "The name of the bucket to create."
 }
