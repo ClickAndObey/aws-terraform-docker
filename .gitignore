@@ -1,0 +1,10 @@
+# IDEA Files
+.idea/
+
+# Makefile Targets
+build-docker
+
+# Terraform Files
+.terraform*
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup

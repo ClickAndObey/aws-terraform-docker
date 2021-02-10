@@ -1,0 +1,32 @@
+name: AWS Terraform Docker CI
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+
+jobs:
+  lintMarkdown:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Lint Markdown
+      run: |
+        make lint-markdown
+  lintTerraform:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Lint Terraform
+      run: |
+        make lint-terraform GITHUB_ACTION=true
+  buildDocker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build Docker
+      run: |
+        make build-docker
