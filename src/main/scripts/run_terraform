@@ -1,0 +1,82 @@
+#!/usr/bin/env sh
+
+export REGION=${REGION-us-west-2}
+export ENVIRONMENT=${ENVIRONMENT-dev}
+export BACKEND_BUCKET_NAME=${BACKEND_BUCKET_NAME-}
+export TERRAFORM_DIRECTORY=${TERRAFORM_DIRECTORY-/terraform}
+export SERVICE_NAME=${SERVICE_NAME-}
+
+usage() {
+  cat <<EOF
+usage: $0 options
+
+This script will perform the given terraform action after initializing the terraform state.
+EOF
+}
+
+export_aws_variables() {
+  export AWS_DEFAULT_REGION=${REGION}
+  export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print $3}')
+  export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_key_id | awk '{print $3}')
+}
+
+tf_init_with_local_backend() {
+  terraform init \
+    -backend-config="key=tfstate/${REGION}-${ENVIRONMENT}-${SERVICE_NAME}.tfstate" \
+    -get=true \
+    "${TERRAFORM_DIRECTORY}"
+}
+
+tf_init_with_s3_backend() {
+  rm -rf "${TERRAFORM_DIRECTORY}"/.terraform
+  terraform init \
+    -backend-config="key=tfstate/${REGION}-${ENVIRONMENT}-${SERVICE_NAME}.tfstate" \
+    -backend-config="bucket=${BACKEND_BUCKET_NAME}" \
+    -backend-config="region=${REGION}" \
+    -get=true \
+    -backend=true \
+    "${TERRAFORM_DIRECTORY}"
+}
+
+tf_infrastructure() {
+  terraform $1 \
+    -var-file "${TERRAFORM_DIRECTORY}/${REGION}-${ENVIRONMENT}.tfvars" \
+    "${TERRAFORM_DIRECTORY}"
+}
+
+tf() {
+  terraform \
+    $* \
+    "${TERRAFORM_DIRECTORY}"
+}
+
+main() {
+  if [ -z "${BACKEND_BUCKET_NAME}" ]; then
+    tf_init_with_local_backend
+  else
+    tf_init_with_s3_backend
+  fi
+
+  ACTION=${1}
+  if [ "${ACTION}" = "plan" ] || [ "${ACTION}" = "apply" ] || [ "${ACTION}" = "destroy" ]; then
+    tf_infrastructure "$*"
+  else
+    tf "$*"
+  fi
+}
+
+check_variables() {
+  if [ -z "${SERVICE_NAME}" ]; then
+    echo "SERVICE_NAME must be provided."
+    exit 1
+  fi
+
+  if [ $# -lt 1 ]; then
+    usage
+    exit 1
+  fi
+}
+
+check_variables "$*"
+export_aws_variables
+main "$*"
