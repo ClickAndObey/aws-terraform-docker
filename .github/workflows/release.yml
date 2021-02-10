@@ -1,4 +1,4 @@
-name: Python Dockerized Webservice Release
+name: AWS Terraform Docker Release
 
 on:
   release:
