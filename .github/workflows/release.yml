@@ -17,10 +17,8 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Lint Terraform
-      env:
-        GITHUB_ACTION: true
       run: |
-        make lint-terraform
+        make lint-terraform GITHUB_ACTION=true
   buildDocker:
     runs-on: ubuntu-latest
     steps:

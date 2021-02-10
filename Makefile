@@ -67,7 +67,7 @@ lint-markdown:
 lint-terraform: build-docker
 	@docker run \
 		--rm \
-		-it \
+		${INTERACTIVE} \
 		--env ENVIRONMENT=dev \
 		--env TERRAFORM_DIRECTORY=/terraform \
 		--env REGION=us-west-2 \
