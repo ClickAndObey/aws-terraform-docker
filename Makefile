@@ -38,7 +38,6 @@ dev-terraform-plan: build-docker
 		--env REGION=us-west-2 \
 		--env SERVICE_NAME=${SERVICE_NAME} \
 		-v `pwd`/terraform:/terraform \
-		-v `pwd`/src/main/scripts:/scripts \
 		-v $(HOME)/.aws:/root/.aws \
 		${DOCKER_IMAGE_NAME} \
 			plan
@@ -73,7 +72,6 @@ lint-terraform: build-docker
 		--env REGION=us-west-2 \
 		--env SERVICE_NAME=${SERVICE_NAME} \
 		-v `pwd`/terraform:/terraform \
-		-v `pwd`/src/main/scripts:/scripts \
 		-v $(HOME)/.aws:/root/.aws \
 		${DOCKER_IMAGE_NAME} \
 			fmt -check=true -diff=true

@@ -22,7 +22,6 @@ export_aws_variables() {
 
 tf_init_with_local_backend() {
   terraform init \
-    -backend-config="key=tfstate/${REGION}-${ENVIRONMENT}-${SERVICE_NAME}.tfstate" \
     -get=true \
     "${TERRAFORM_DIRECTORY}"
 }
