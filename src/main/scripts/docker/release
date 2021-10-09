@@ -1,0 +1,54 @@
+#!/usr/bin/env sh
+
+#{{{ Bash Settings
+# abort on nonzero exitstatus
+set -o errexit
+#}}}
+
+#{{{ Variables
+SERVICE=${SERVICE-}
+# shellcheck disable=SC2086
+# shellcheck disable=SC2155
+export SERVICE="$(echo ${SERVICE} | tr _ -)"
+export VERSION=${VERSION-}
+export TERRAFORM_DIRECTORY=${TERRAFORM_DIRECTORY-/terraform}
+export LOCAL_RELEASE_FILE="${HOME}/release.zip"
+export BUILD_ENVIRONMENT_FILE="${TERRAFORM_DIRECTORY}/build-environment"
+#}}}
+
+# Import Shared Functions to be used here.
+. /scripts/docker/shared_functions.sh
+
+release() {
+  echo "Removing .terraform files to ensure the environment is completely clean and we are not utilizing a state from a different environment."
+  rm -rf "${TERRAFORM_DIRECTORY}"/.terraform
+
+  echo "Creating build-environment file..."
+  # #? strips the first character (i.e. /)
+  cat > "${BUILD_ENVIRONMENT_FILE}" <<EOL
+export SERVICE=${SERVICE}
+export VERSION=${VERSION}
+export TERRAFORM_DIRECTORY="${TERRAFORM_DIRECTORY#?}"
+EOL
+  echo "Created build-environment file."
+
+  echo "Creating zip file of terraform contents..."
+  zip -r "${LOCAL_RELEASE_FILE}" "${TERRAFORM_DIRECTORY}"
+  echo "Created zip file of terraform contents."
+
+  echo "Copying ${LOCAL_RELEASE_FILE} to s3://${SERVICE}-deployments/artifacts/${VERSION}/release.zip"
+  aws s3 cp "${LOCAL_RELEASE_FILE}" "s3://${SERVICE}-deployments/artifacts/${VERSION}/release.zip"
+  echo "${LOCAL_RELEASE_FILE} copied to s3://${SERVICE}-deployments/artifacts/${VERSION}/release.zip"
+
+  echo "Removing build-environment file..."
+  rm -f "${BUILD_ENVIRONMENT_FILE}"
+  echo "Removed build-environment file."
+}
+
+check_variables() {
+  check_service
+  check_version
+}
+
+check_variables
+release

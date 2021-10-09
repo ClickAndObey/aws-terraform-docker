@@ -1,0 +1,40 @@
+#!/usr/bin/env sh
+
+#{{{ Bash Settings
+# abort on nonzero exitstatus
+set -o errexit
+#}}}
+
+#{{{ Variables
+export REGION=${REGION-}
+export ENVIRONMENT=${ENVIRONMENT-}
+SERVICE=${SERVICE-}
+# shellcheck disable=SC2086
+# shellcheck disable=SC2155
+export SERVICE="$(echo ${SERVICE} | tr _ -)"
+export VERSION=${VERSION-}
+#}}}
+
+# Import Shared Functions to be used here.
+. /scripts/docker/shared_functions.sh
+
+deploy() {
+  BUCKET="${SERVICE}-deployments"
+  DEPLOYMENT_KEY="${ENVIRONMENT}/deploy.zip"
+  VERSIONED_ARTIFACT_PATH="s3://${BUCKET}/artifacts/${VERSION}/release.zip"
+  DEPLOYMENT_PATH="s3://${BUCKET}/${DEPLOYMENT_KEY}"
+
+  echo "Copying versioned release ${VERSIONED_ARTIFACT_PATH} to ${ENVIRONMENT} deployment path ${DEPLOYMENT_PATH}..."
+  aws s3 cp "${VERSIONED_ARTIFACT_PATH}" "${DEPLOYMENT_PATH}" --acl bucket-owner-full-control
+  echo "Copied versioned release ${VERSIONED_ARTIFACT_PATH} to ${ENVIRONMENT} deployment path ${DEPLOYMENT_PATH}."
+}
+
+check_variables() {
+  check_region
+  check_environment
+  check_service
+  check_version
+}
+
+check_variables
+deploy

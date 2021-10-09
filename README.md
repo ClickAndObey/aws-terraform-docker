@@ -8,19 +8,7 @@ Project meant to create a simple docker image for use with creating infrastructu
 
 ## Usage
 
-```bash
-@docker run \
-    --rm \
-    -it \
-    --env ENVIRONMENT=dev \
-    --env TERRAFORM_DIRECTORY=/terraform \
-    --env REGION=us-west-2 \
-    --env SERVICE_NAME=${SERVICE_NAME} \
-    -v `pwd`/terraform:/terraform \
-    -v $(HOME)/.aws:/root/.aws \
-    ghcr.io/clickandobey/aws-terraform-docker:1.0.0 \
-        plan
-```
-
 The usage of this project is to produce a docker image that can be used as the basis for AWS deployments via terraform.
-The dockerization makes it much easier to control the environment used between machines
+The dockerization makes it much easier to control the environment used between machines, and the [run_terraform](src/main/scripts/local/run_terraform)
+local script has the up to date and intended usage.
+

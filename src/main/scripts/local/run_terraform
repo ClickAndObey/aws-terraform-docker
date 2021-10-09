@@ -1,0 +1,413 @@
+#!/usr/bin/env bash
+
+#{{{ Bash Settings
+# abort on nonzero exitstatus
+set -o errexit
+#}}}
+
+#{{{ Variables
+TF_LOG=${TF_LOG-}
+TERRAFORM_VERSION=${TERRAFORM_VERSION-1.0}
+DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME-"ghcr.io"/clickandobey/terraform-shared:${TERRAFORM_VERSION}}
+SERVICE=${SERVICE-"$(basename "$(pwd)")"}
+# shellcheck disable=SC2086
+# shellcheck disable=SC2155
+export SERVICE="$(echo ${SERVICE} | tr _ -)"
+TERRAFORM_DIRECTORY=${TERRAFORM_DIRECTORY-"$(pwd)/terraform"}
+CUSTOM_TF_VARS=${CUSTOM_TF_VARS-}
+QUIET_MODE=${QUIET_MODE-0}
+#}}}
+
+configure_output() {
+  if [ "${QUIET_MODE}" -eq 1  ]; then
+    exec 6>&1 # saves stdout
+    suppress_output
+  fi
+}
+
+suppress_output() {
+    if [ "${QUIET_MODE}" -eq 1  ]; then
+        exec > /dev/null  # redirect stdout to /dev/null
+    fi
+}
+
+unsuppress_output() {
+    if [ "${QUIET_MODE}" -eq 1  ]; then
+        exec 1>&6 # restore stdout
+    fi
+}
+
+exec_cmd() {
+  unsuppress_output
+  $*
+  suppress_output
+}
+
+echo_assumptions() {
+  cat << EOF
+Running terraform with assumed values:
+	Service - ${SERVICE}
+	Terraform Directory - ${TERRAFORM_DIRECTORY}
+EOF
+}
+
+lint() {
+  region="${1}"
+  environment="${2}"
+
+  cat << EOF
+Running terraform linting with:
+	region - ${region}
+	environment - ${environment}
+	custom vars - ${CUSTOM_TF_VARS}
+EOF
+
+  exec_cmd \
+    docker run \
+      --rm \
+      --env TF_LOG="${TF_LOG}" \
+      --env TERRAFORM_DIRECTORY=/terraform \
+      --env REGION="${region}" \
+      --env ENVIRONMENT="${environment}" \
+      --env SERVICE="${SERVICE}" \
+      --env CUSTOM_TF_VARS="${CUSTOM_TF_VARS}" \
+      --env QUIET_MODE="${QUIET_MODE}" \
+      -v "${TERRAFORM_DIRECTORY}":/terraform \
+      -v "${HOME}/.aws":/root/.aws \
+      "${DOCKER_IMAGE_NAME}" \
+        fmt \
+          -check=true \
+          -diff=true
+
+  echo "Terraform Linting complete."
+}
+
+plan() {
+  region="${1}"
+  environment="${2}"
+
+  cat << EOF
+Running terraform plan with:
+	region - ${region}
+	environment - ${environment}
+	custom vars - ${CUSTOM_TF_VARS}
+	arg - ${@:3}
+EOF
+
+  exec_cmd \
+    docker run \
+      --rm \
+      --env TF_LOG="${TF_LOG}" \
+      --env TERRAFORM_DIRECTORY=/terraform \
+      --env REGION="${region}" \
+      --env ENVIRONMENT="${environment}" \
+      --env SERVICE="${SERVICE}" \
+      --env CUSTOM_TF_VARS="${CUSTOM_TF_VARS}" \
+      --env QUIET_MODE="${QUIET_MODE}" \
+      -v "${TERRAFORM_DIRECTORY}":/terraform \
+      -v "${HOME}/.aws":/root/.aws \
+      "${DOCKER_IMAGE_NAME}" \
+        plan ${@:3}
+
+  echo "Terraform plan complete."
+}
+
+apply() {
+  region="${1}"
+  environment="${2}"
+
+  cat << EOF
+Running terraform apply with:
+	region - ${region}
+	environment - ${environment}
+	custom vars - ${CUSTOM_TF_VARS}
+	arg - ${@:3}
+EOF
+
+  exec_cmd \
+    docker run \
+      --rm \
+      --interactive \
+      --env TF_LOG="${TF_LOG}" \
+      --env TERRAFORM_DIRECTORY=/terraform \
+      --env REGION="${region}" \
+      --env ENVIRONMENT="${environment}" \
+      --env SERVICE="${SERVICE}" \
+      --env CUSTOM_TF_VARS="${CUSTOM_TF_VARS}" \
+      --env QUIET_MODE="${QUIET_MODE}" \
+      -v "${TERRAFORM_DIRECTORY}":/terraform \
+      -v "${HOME}/.aws":/root/.aws \
+      "${DOCKER_IMAGE_NAME}" \
+        apply ${@:3}
+
+  echo "Terraform apply complete."
+}
+
+destroy() {
+  region="${1}"
+  environment="${2}"
+
+  cat << EOF
+Running terraform destroy with:
+	region - ${region}
+	environment - ${environment}
+	custom vars - ${CUSTOM_TF_VARS}
+	arg - ${@:3}
+EOF
+
+  exec_cmd \
+    docker run \
+      --rm \
+      --interactive \
+      --env TF_LOG="${TF_LOG}" \
+      --env TERRAFORM_DIRECTORY=/terraform \
+      --env REGION="${region}" \
+      --env ENVIRONMENT="${environment}" \
+      --env SERVICE="${SERVICE}" \
+      --env CUSTOM_TF_VARS="${CUSTOM_TF_VARS}" \
+      --env QUIET_MODE="${QUIET_MODE}" \
+      -v "${TERRAFORM_DIRECTORY}":/terraform \
+      -v "${HOME}/.aws":/root/.aws \
+      "${DOCKER_IMAGE_NAME}" \
+        destroy ${@:3}
+
+  echo "Terraform destroy complete."
+}
+
+import() {
+  region="${1}"
+  environment="${2}"
+
+  cat << EOF
+Running terraform import with:
+	region - ${region}
+	environment - ${environment}
+	custom vars - ${CUSTOM_TF_VARS}
+	arg - ${@:3}
+EOF
+
+  exec_cmd \
+    docker run \
+      --rm \
+      --interactive \
+      --env TF_LOG="${TF_LOG}" \
+      --env TERRAFORM_DIRECTORY=/terraform \
+      --env REGION="${region}" \
+      --env ENVIRONMENT="${environment}" \
+      --env SERVICE="${SERVICE}" \
+      --env CUSTOM_TF_VARS="${CUSTOM_TF_VARS}" \
+      --env QUIET_MODE="${QUIET_MODE}" \
+      -v "${TERRAFORM_DIRECTORY}":/terraform \
+      -v "${HOME}/.aws":/root/.aws \
+      "${DOCKER_IMAGE_NAME}" \
+        import ${@:3}
+
+  echo "Terraform import complete."
+}
+
+state() {
+  region="${1}"
+  environment="${2}"
+
+  cat << EOF
+Running terraform state with:
+	region - ${region}
+	environment - ${environment}
+	custom vars - ${CUSTOM_TF_VARS}
+	arg - ${@:3}
+EOF
+
+  exec_cmd \
+    docker run \
+      --rm \
+      --interactive \
+      --env TF_LOG="${TF_LOG}" \
+      --env TERRAFORM_DIRECTORY=/terraform \
+      --env REGION="${region}" \
+      --env ENVIRONMENT="${environment}" \
+      --env SERVICE="${SERVICE}" \
+      --env CUSTOM_TF_VARS="${CUSTOM_TF_VARS}" \
+      --env QUIET_MODE="${QUIET_MODE}" \
+      -v "${TERRAFORM_DIRECTORY}":/terraform \
+      -v "${HOME}/.aws":/root/.aws \
+      "${DOCKER_IMAGE_NAME}" \
+        state ${@:3}
+
+  echo "Terraform state complete."
+}
+
+refresh() {
+  region="${1}"
+  environment="${2}"
+
+  cat << EOF
+Running terraform refresh with:
+	region - ${region}
+	environment - ${environment}
+	custom vars - ${CUSTOM_TF_VARS}
+	arg - ${@:3}
+EOF
+
+  exec_cmd \
+    docker run \
+      --rm \
+      --interactive \
+      --env TF_LOG="${TF_LOG}" \
+      --env TERRAFORM_DIRECTORY=/terraform \
+      --env REGION="${region}" \
+      --env ENVIRONMENT="${environment}" \
+      --env SERVICE="${SERVICE}" \
+      --env CUSTOM_TF_VARS="${CUSTOM_TF_VARS}" \
+      --env QUIET_MODE="${QUIET_MODE}" \
+      -v "${TERRAFORM_DIRECTORY}":/terraform \
+      -v "${HOME}/.aws":/root/.aws \
+      "${DOCKER_IMAGE_NAME}" \
+        refresh ${@:3}
+
+  echo "Terraform refresh complete."
+}
+
+output() {
+  region="${1}"
+  environment="${2}"
+
+  cat << EOF
+Running terraform output with:
+	region - ${region}
+	environment - ${environment}
+	custom vars - ${CUSTOM_TF_VARS}
+	arg - ${@:3}
+EOF
+
+  exec_cmd \
+    docker run \
+      --rm \
+      --interactive \
+      --env TF_LOG="${TF_LOG}" \
+      --env TERRAFORM_DIRECTORY=/terraform \
+      --env REGION="${region}" \
+      --env ENVIRONMENT="${environment}" \
+      --env SERVICE="${SERVICE}" \
+      --env CUSTOM_TF_VARS="${CUSTOM_TF_VARS}" \
+      --env QUIET_MODE="${QUIET_MODE}" \
+      -v "${TERRAFORM_DIRECTORY}":/terraform \
+      -v "${HOME}/.aws":/root/.aws \
+      "${DOCKER_IMAGE_NAME}" \
+        output ${@:3}
+
+  echo "Terraform output complete."
+}
+
+release() {
+  version="${1}"
+
+  cat << EOF
+Running terraform release with:
+	version - ${version}
+	arg - ${@:3}
+EOF
+
+  exec_cmd \
+    docker run \
+      --rm \
+      --interactive \
+      --entrypoint /scripts/docker/release \
+      --env TERRAFORM_DIRECTORY=/terraform \
+      --env SERVICE="${SERVICE}" \
+      --env VERSION="${version}" \
+      --env QUIET_MODE="${QUIET_MODE}" \
+      -v "${TERRAFORM_DIRECTORY}":/terraform \
+      -v "${HOME}/.aws":/root/.aws \
+      "${DOCKER_IMAGE_NAME}"
+
+  echo "Terraform release complete."
+}
+
+deploy() {
+  region="${1}"
+  environment="${2}"
+  version="${3}"
+
+  cat << EOF
+Running terraform deploy with:
+	region - ${region}
+	environment - ${environment}
+	version - ${version}
+	arg - ${@:4}
+EOF
+
+  exec_cmd \
+    docker run \
+      --rm \
+      --interactive \
+      --entrypoint /scripts/docker/deploy \
+      --env REGION="${region}" \
+      --env ENVIRONMENT="${environment}" \
+      --env SERVICE="${SERVICE}" \
+      --env VERSION="${version}" \
+      --env QUIET_MODE="${QUIET_MODE}" \
+      -v "${HOME}/.aws":/root/.aws \
+      "${DOCKER_IMAGE_NAME}"
+
+  echo "Terraform deploy complete."
+}
+
+main() {
+  command="${1}"
+  shift
+
+  region="${1}"
+  environment="${2}"
+
+  case $command in
+    lint)
+      lint "${region}" "${environment}"
+      ;;
+
+    plan)
+      plan $*
+      ;;
+
+    apply)
+      apply $*
+      ;;
+
+    destroy)
+      destroy $*
+      ;;
+
+    import)
+      import $*
+      ;;
+
+    state)
+      state $*
+      ;;
+
+    refresh)
+      refresh $*
+      ;;
+
+    output)
+      output $*
+      ;;
+
+    release)
+      release $*
+      ;;
+
+    deploy)
+      deploy $*
+      ;;
+
+    *)
+      echo "Trying to run terraform command $command, which has not been defined here."
+      exit 1
+      ;;
+  esac
+}
+
+configure_output
+echo_assumptions
+
+main $*

@@ -1,0 +1,155 @@
+#!/usr/bin/env sh
+
+#{{{ Bash Settings
+# abort on nonzero exitstatus
+set -o errexit
+#}}}
+
+#{{{ Variables
+export REGION=${REGION-}
+export ENVIRONMENT=${ENVIRONMENT-}
+SERVICE=${SERVICE-}
+# shellcheck disable=SC2086
+# shellcheck disable=SC2155
+export SERVICE="$(echo ${SERVICE} | tr _ -)"
+export VERSION=${VERSION-}
+export CUSTOM_TF_VARS=${CUSTOM_TF_VARS-}
+export TERRAFORM_DIRECTORY=${TERRAFORM_DIRECTORY-/terraform}
+# shellcheck disable=SC2155
+export VAR_FILE_ABSOLUTE_PATH=$(find "$(cd "${TERRAFORM_DIRECTORY}"; pwd)" -name "${REGION}-${ENVIRONMENT}.tfvars")
+export PLAN_FILE=${PLAN_FILE-}
+export QUIET_MODE=${QUIET_MODE-0}
+#}}}
+
+# Import Shared Functions to be used here.
+. /scripts/docker/shared_functions.sh
+
+usage() {
+  cat <<EOF
+usage: $0 options
+This script will perform the given terraform action after initializing the terraform state.
+EOF
+}
+
+check_for_pre_existing_var() {
+  echo "Checking for overwrite of existing tf var '${1}' in ${CUSTOM_TF_VARS}..."
+  keys=$(echo "${CUSTOM_TF_VARS}" | jq -r 'keys[]')
+  for key in ${keys}
+  do
+    if [ "${key}" = "${1}" ]; then
+      echo "Invalid key ${key} given which overwrites ${1}."
+      exit 1
+    fi
+  done
+  echo "${1} is not overwritten."
+}
+
+export_tf_variables() {
+  echo "Exporting TF Variables..."
+  export TF_VAR_region=${REGION}
+  export TF_VAR_environment=${ENVIRONMENT}
+  export TF_VAR_service=${SERVICE}
+  # Only set the service version if VERSION has been passed in.
+  if [ -n "${VERSION}" ]; then
+    export TF_VAR_service_version=${VERSION}
+  fi
+  ## Add "global" tf vars here like pagerduty, datadog, github, etc...
+  if [ -n "${CUSTOM_TF_VARS}" ]; then
+    check_for_pre_existing_var "region"
+    check_for_pre_existing_var "environment"
+    check_for_pre_existing_var "service"
+    check_for_pre_existing_var "service_version"
+    export_custom_tf_vars
+  fi
+  echo "Exported TF Variables."
+}
+
+export_custom_tf_vars() {
+  echo "Exporting custom vars ${CUSTOM_TF_VARS}..."
+  args_as_exports=$(echo "${CUSTOM_TF_VARS}" | jq -r 'keys[] as $k | "export TF_VAR_\($k)=\(.[$k])"')
+  eval "${args_as_exports}"
+  echo "Exported custom vars."
+}
+
+echo_start() {
+  cat <<EOF
+Starting dockerized terraform process utilizing terraform-shared. Variables have been registered and terraform operations will now proceed.
+EOF
+}
+
+tf_init() {
+  echo "Removing terraform.tfstate file to ensure the environment is completely clean and we are not utilizing a state from a different environment."
+  rm -f "${TERRAFORM_DIRECTORY}"/.terraform/terraform.tfstate
+  terraform -chdir="${TERRAFORM_DIRECTORY}" init \
+    -backend-config="key=tfstate/${SERVICE}-${ENVIRONMENT}.tfstate" \
+    -backend-config="bucket=${ENVIRONMENT}-terraform-state" \
+    -backend-config="region=${REGION}" \
+    -backend-config="encrypt=true" \
+    -backend-config="dynamodb_table=${ENVIRONMENT}-terraform-state-lock-dynamo" \
+    -backend=true
+}
+
+tf_infrastructure() {
+  if [ -n "${PLAN_FILE}" ]; then
+    terraform -chdir="${TERRAFORM_DIRECTORY}" $* "${PLAN_FILE}"
+  else
+    terraform -chdir="${TERRAFORM_DIRECTORY}" $* \
+      -var-file "${VAR_FILE_ABSOLUTE_PATH}"
+  fi
+}
+
+tf_state() {
+  terraform state $*
+}
+
+tf_import() {
+  terraform import \
+    -var-file "${VAR_FILE_ABSOLUTE_PATH}" \
+    $*
+}
+
+tf_output() {
+  exec_cmd \
+    terraform output $*
+}
+
+tf() {
+  terraform -chdir="${TERRAFORM_DIRECTORY}" \
+    $*
+}
+
+main() {
+  tf_init
+  ACTION=${1}
+  shift
+  echo "Preparing to run terraform action - ${ACTION} with arguments - $*"
+  if [ "${ACTION}" = "plan" ] || [ "${ACTION}" = "apply" ] || [ "${ACTION}" = "destroy" ]; then
+    exec_cmd tf_infrastructure "${ACTION}" $*
+  elif [ "${ACTION}" = "state" ]; then
+    exec_cmd tf_state $*
+  elif [ "${ACTION}" = "import" ]; then
+    exec_cmd tf_import $*
+  elif [ "${ACTION}" = "output" ]; then
+    exec_cmd tf_output $*
+  else
+    exec_cmd tf "${ACTION}" $*
+  fi
+}
+
+check_variables() {
+  check_region
+  check_environment
+  check_service
+
+  if [ $# -lt 1 ]; then
+    usage
+    exit 1
+  fi
+}
+
+configure_output
+check_variables "$*"
+export_aws_variables
+export_tf_variables
+echo_start
+main $*

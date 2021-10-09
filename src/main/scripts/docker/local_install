@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+
+#{{{ Bash Settings
+# abort on nonzero exitstatus
+set -o errexit
+#}}}
+
+#{{{ Variables
+TERRAFORM_SHARED_DIRECTORY="/terraform-shared"
+LOCAL_SCRIPTS_DIRECTORY="/scripts/local"
+#}}}
+
+local_install() {
+  if [ ! -d "${LOCAL_SCRIPTS_DIRECTORY}" ]; then
+    echo "Unable to locate the ${LOCAL_SCRIPTS_DIRECTORY} directory. Are you running in docker?"
+    exit 1
+  fi
+
+  if [ ! -d "${TERRAFORM_SHARED_DIRECTORY}" ]; then
+    echo "Unable to locate the ${TERRAFORM_SHARED_DIRECTORY} directory."
+    echo "Make sure you have mounted your terraform shared output directory to ${TERRAFORM_SHARED_DIRECTORY} when running this command."
+    exit 1
+  fi
+
+  cp "${LOCAL_SCRIPTS_DIRECTORY}"/* "${TERRAFORM_SHARED_DIRECTORY}"
+}
+
+local_install
