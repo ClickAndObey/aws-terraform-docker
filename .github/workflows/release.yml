@@ -12,13 +12,6 @@ jobs:
     - name: Lint Markdown
       run: |
         make lint-markdown
-  lintTerraform:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v1
-    - name: Lint Terraform
-      run: |
-        make lint-terraform GITHUB_ACTION=true
   buildDocker:
     runs-on: ubuntu-latest
     steps:
